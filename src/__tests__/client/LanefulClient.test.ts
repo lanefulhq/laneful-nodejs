@@ -1,9 +1,7 @@
 import axios from 'axios';
 import { LanefulClient } from '../../client/LanefulClient';
 import { Email } from '../../models';
-import {
-  LanefulValidationError,
-} from '../../exceptions';
+import { LanefulValidationError } from '../../exceptions';
 
 // Mock axios
 jest.mock('axios');
