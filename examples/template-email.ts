@@ -7,7 +7,7 @@ import { LanefulClient, Email } from '../src';
 
 async function sendTemplateEmail(): Promise<void> {
   const client = new LanefulClient(
-    'https://your-endpoint.send.laneful.net',
+    'https://custom-endpoint.send.laneful.net',
     'your-auth-token',
     {
       retry: {

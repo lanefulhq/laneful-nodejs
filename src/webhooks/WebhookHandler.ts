@@ -115,18 +115,21 @@ export class WebhookHandler {
 
   /**
    * Process a webhook payload and call appropriate handlers.
+   * Supports both single events and batch mode (arrays of events).
    *
-   * @param payload - The webhook payload (JSON string or object)
+   * @param payload - The webhook payload (JSON string or object/array)
    * @throws {Error} If payload is invalid or required fields are missing
    */
   async processWebhook(
-    payload: string | Record<string, unknown>
+    payload: string | Record<string, unknown> | Record<string, unknown>[]
   ): Promise<void> {
-    let data: Record<string, unknown>;
+    let data: Record<string, unknown> | Record<string, unknown>[];
 
     if (typeof payload === 'string') {
       try {
-        data = JSON.parse(payload) as Record<string, unknown>;
+        data = JSON.parse(payload) as
+          | Record<string, unknown>
+          | Record<string, unknown>[];
       } catch (error) {
         throw new Error(`Invalid JSON payload: ${error}`);
       }
@@ -134,15 +137,46 @@ export class WebhookHandler {
       data = payload;
     }
 
-    const event = createWebhookEvent(data);
+    // Handle batch mode (array of events)
+    if (Array.isArray(data)) {
+      await this.processBatchEvents(data);
+    } else {
+      // Handle single event
+      await this.processSingleEvent(data);
+    }
+  }
+
+  /**
+   * Process a batch of webhook events.
+   *
+   * @param events - Array of event data objects
+   */
+  private async processBatchEvents(
+    events: Record<string, unknown>[]
+  ): Promise<void> {
+    const promises = events.map((eventData) =>
+      this.processSingleEvent(eventData)
+    );
+    await Promise.all(promises);
+  }
+
+  /**
+   * Process a single webhook event.
+   *
+   * @param eventData - Single event data object
+   */
+  private async processSingleEvent(
+    eventData: Record<string, unknown>
+  ): Promise<void> {
+    const event = createWebhookEvent(eventData);
 
     // Validate required fields
-    if (!event.eventType) {
-      throw new Error('Webhook payload missing required field: event_type');
+    if (!event.event) {
+      throw new Error('Webhook payload missing required field: event');
     }
 
     // Call the appropriate handler if one is registered
-    const handler = this.handlers.get(event.eventType);
+    const handler = this.handlers.get(event.event);
     if (handler) {
       await handler(event);
     }

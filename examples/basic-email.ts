@@ -7,36 +7,27 @@ import { LanefulClient, Email } from '../src';
 async function sendBasicEmail(): Promise<void> {
   // Initialize the client
   const client = new LanefulClient(
-    'https://your-endpoint.send.laneful.net',
+    'https://custom-endpoint.send.laneful.net',
     'your-auth-token'
   );
 
   // Create a basic email
   const email: Email = {
     from: {
-      email: 'sender@yourcompany.com',
-      name: 'Your Company',
+      email: 'noreply@yourdomain.com',
+      name: 'Your App Name',
     },
     to: [
       {
-        email: 'recipient@example.com',
-        name: 'John Doe',
+        email: 'user@example.com',
+        name: 'User Name',
       },
     ],
-    subject: 'Welcome to our service!',
-    textContent: `
-      Hello John!
-      
-      Welcome to our service. We're excited to have you on board.
-      
-      Best regards,
-      Your Company Team
-    `,
-    htmlContent: `
-      <h1>Hello John!</h1>
-      <p>Welcome to our service. We're excited to have you on board.</p>
-      <p>Best regards,<br>Your Company Team</p>
-    `,
+    subject: 'Welcome to Our Service',
+    textContent:
+      "Hello,\n\nWelcome to our service! We're excited to have you on board.\n\nIf you have any questions, feel free to reach out to our support team.\n\nBest regards,\nThe Team",
+    htmlContent:
+      "<h1>Welcome!</h1><p>Hello,</p><p>Welcome to our service! We're excited to have you on board.</p><p>If you have any questions, feel free to reach out to our support team.</p><p>Best regards,<br>The Team</p>",
   };
 
   try {

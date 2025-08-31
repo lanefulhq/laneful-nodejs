@@ -16,60 +16,116 @@ app.use(express.json());
 const webhookHandler = new WebhookHandler('your-webhook-secret');
 
 // Register event handlers
-webhookHandler.on(WebhookEventType.EMAIL_DELIVERED)((event) => {
+webhookHandler.on(WebhookEventType.DELIVERY)((event) => {
   console.log(`✅ Email delivered!`);
-  console.log(`  Message ID: ${event.messageId}`);
+  console.log(`  Message ID: ${event.message_id}`);
   console.log(`  Recipient: ${event.email}`);
+  console.log(`  Lane ID: ${event.lane_id}`);
+  console.log(`  Tag: ${event.tag}`);
   console.log(`  Timestamp: ${new Date(event.timestamp * 1000).toISOString()}`);
   // You can update your database, send notifications, etc.
-  // updateEmailStatus(event.messageId, 'delivered');
+  // updateEmailStatus(event.message_id, 'delivered');
 });
 
-webhookHandler.on(WebhookEventType.EMAIL_OPENED)((event) => {
+webhookHandler.on(WebhookEventType.OPEN)((event) => {
   console.log(`👀 Email opened!`);
-  console.log(`  Message ID: ${event.messageId}`);
+  console.log(`  Message ID: ${event.message_id}`);
   console.log(`  Recipient: ${event.email}`);
+  console.log(`  Lane ID: ${event.lane_id}`);
+  console.log(`  Tag: ${event.tag}`);
+  // Access open-specific fields
+  if (event.event === WebhookEventType.OPEN) {
+    console.log(`  Client IP: ${event.client_ip}`);
+    console.log(`  Client OS: ${event.client_os}`);
+    console.log(`  Client Device: ${event.client_device}`);
+  }
   // Track email opens in your analytics
-  // analytics.track('email_opened', { messageId: event.messageId });
+  // analytics.track('email_opened', { messageId: event.message_id });
 });
 
-webhookHandler.on(WebhookEventType.EMAIL_CLICKED)((event) => {
+webhookHandler.on(WebhookEventType.CLICK)((event) => {
   console.log(`🔗 Email link clicked!`);
-  console.log(`  Message ID: ${event.messageId}`);
+  console.log(`  Message ID: ${event.message_id}`);
   console.log(`  Recipient: ${event.email}`);
-  console.log(`  URL: ${event.data.url}`);
+  console.log(`  Lane ID: ${event.lane_id}`);
+  console.log(`  Tag: ${event.tag}`);
+  // Access click-specific fields
+  if (event.event === WebhookEventType.CLICK) {
+    console.log(`  URL: ${event.url}`);
+    console.log(`  Client OS: ${event.client_os}`);
+    console.log(`  Client Device: ${event.client_device}`);
+  }
 });
 
-webhookHandler.on(WebhookEventType.EMAIL_BOUNCED)((event) => {
-  console.log(`❌ Email bounced!`);
-  console.log(`  Message ID: ${event.messageId}`);
+webhookHandler.on(WebhookEventType.DROP)((event) => {
+  console.log(`❌ Email dropped!`);
+  console.log(`  Message ID: ${event.message_id}`);
   console.log(`  Recipient: ${event.email}`);
-  console.log(`  Reason: ${event.data.reason}`);
-  // Handle bounced emails (update database, remove from list, etc.)
-  // handleBouncedEmail(event.email, event.data.reason);
+  console.log(`  Lane ID: ${event.lane_id}`);
+  console.log(`  Tag: ${event.tag}`);
+  // Access drop-specific fields
+  if (event.event === WebhookEventType.DROP) {
+    console.log(`  Reason: ${event.reason}`);
+  }
+  // Handle dropped emails (update database, remove from list, etc.)
+  // handleDroppedEmail(event.email, event.reason);
 });
 
-webhookHandler.on(WebhookEventType.EMAIL_COMPLAINED)((event) => {
+webhookHandler.on(WebhookEventType.SPAM_COMPLAINT)((event) => {
   console.log(`⚠️ Email complaint (spam)!`);
-  console.log(`  Message ID: ${event.messageId}`);
+  console.log(`  Message ID: ${event.message_id}`);
   console.log(`  Recipient: ${event.email}`);
+  console.log(`  Lane ID: ${event.lane_id}`);
+  console.log(`  Tag: ${event.tag}`);
+  // Access spam complaint specific fields
+  if (event.event === WebhookEventType.SPAM_COMPLAINT) {
+    console.log(`  Feedback Type: ${event.feedback_type_text}`);
+    console.log(
+      `  Received: ${new Date(event.received_unix_timestamp * 1000).toISOString()}`
+    );
+  }
   // Handle spam complaints (remove from list, investigate, etc.)
   // handleSpamComplaint(event.email);
 });
 
-webhookHandler.on(WebhookEventType.EMAIL_UNSUBSCRIBED)((event) => {
+webhookHandler.on(WebhookEventType.UNSUBSCRIBE)((event) => {
   console.log(`📭 Email unsubscribed!`);
-  console.log(`  Message ID: ${event.messageId}`);
+  console.log(`  Message ID: ${event.message_id}`);
   console.log(`  Recipient: ${event.email}`);
+  console.log(`  Lane ID: ${event.lane_id}`);
+  console.log(`  Tag: ${event.tag}`);
+  // Access unsubscribe-specific fields
+  if (event.event === WebhookEventType.UNSUBSCRIBE) {
+    console.log(`  Unsubscribe Group: ${event.unsubscribe_group_id || 'N/A'}`);
+  }
   // Handle unsubscribes (update preferences, remove from list, etc.)
   // handleUnsubscribe(event.email);
+});
+
+webhookHandler.on(WebhookEventType.BOUNCE)((event) => {
+  console.log(`⚠️ Email bounced!`);
+  console.log(`  Message ID: ${event.message_id}`);
+  console.log(`  Recipient: ${event.email}`);
+  console.log(`  Lane ID: ${event.lane_id}`);
+  console.log(`  Tag: ${event.tag}`);
+  // Access bounce-specific fields
+  if (event.event === WebhookEventType.BOUNCE) {
+    console.log(`  Bounce Code: ${event.code}`);
+    console.log(`  Bounce Text: ${event.text}`);
+    console.log(`  Is Hard Bounce: ${event.is_hard}`);
+    console.log(
+      `  Deliverability Issue: ${event.deliverability_issue || 'N/A'}`
+    );
+  }
+  // Handle bounces (update database, remove from list, etc.)
+  // handleBounce(event.email, event.is_hard);
 });
 
 // Webhook endpoint
 app.post('/webhook/laneful', async (req, res) => {
   try {
-    // Get the signature from headers
-    const signature = req.headers['x-laneful-signature'] as string;
+    // Get the signature from headers (using standard header name from documentation)
+    const signature = req.headers['x-webhook-signature'] as string;
     if (!signature) {
       return res.status(400).json({ error: 'Missing signature header' });
     }
@@ -81,7 +137,7 @@ app.post('/webhook/laneful', async (req, res) => {
       return res.status(401).json({ error: 'Invalid signature' });
     }
 
-    // Process the webhook
+    // Process the webhook (supports both single events and batch mode)
     await webhookHandler.processWebhook(req.body);
     return res.status(200).json({ success: true });
   } catch (error) {
