@@ -19,17 +19,17 @@ import { LanefulClient, Email } from 'laneful';
 
 // Initialize the client
 const client = new LanefulClient(
-  'https://your-endpoint.send.laneful.net',
+  'https://custom-endpoint.send.laneful.net',
   'your-auth-token'
 );
 
 // Create an email
 const email: Email = {
-  from: { email: 'sender@example.com', name: 'Your Name' },
-  to: [{ email: 'recipient@example.com', name: 'Recipient Name' }],
-  subject: 'Hello from Laneful!',
-  textContent: 'This is a plain text email.',
-  htmlContent: '<h1>This is an HTML email!</h1>',
+  from: { email: 'noreply@yourdomain.com', name: 'Your App Name' },
+  to: [{ email: 'user@example.com', name: 'User Name' }],
+  subject: 'Welcome to Our Service',
+  textContent: 'Hello,\n\nWelcome to our service! We\'re excited to have you on board.\n\nIf you have any questions, feel free to reach out to our support team.\n\nBest regards,\nThe Team',
+  htmlContent: '<h1>Welcome!</h1><p>Hello,</p><p>Welcome to our service! We\'re excited to have you on board.</p><p>If you have any questions, feel free to reach out to our support team.</p><p>Best regards,<br>The Team</p>',
 };
 
 // Send the email
@@ -70,7 +70,11 @@ interface Email {
   templateId?: string;
   templateData?: Record<string, unknown>;
   attachments?: Attachment[];
+  headers?: Record<string, string>;
+  replyTo?: Address;
   sendTime?: number;        // Unix timestamp for scheduling
+  webhookData?: Record<string, string>;
+  tag?: string;
   tracking?: TrackingSettings;
 }
 
@@ -84,25 +88,51 @@ interface Attachment {
   fileName?: string;
   content?: string;         // Base64 encoded
 }
+
+interface TrackingSettings {
+  opens?: boolean;          // Track email opens (default: true)
+  clicks?: boolean;         // Track link clicks (default: true)
+  unsubscribes?: boolean;   // Track unsubscribes (default: true)
+  unsubscribeGroupId?: number; // Optional unsubscribe group ID
+}
 ```
 
 ## Webhooks
 
 ```typescript
-import { WebhookHandler } from 'laneful';
+import { WebhookHandler, WebhookEventType } from 'laneful';
 
 const webhookHandler = new WebhookHandler('your-webhook-secret');
 
 // Register event handlers
-webhookHandler.on('email.delivered', (event) => {
-  console.log(`Email delivered: ${event.messageId}`);
+webhookHandler.on(WebhookEventType.DELIVERY)((event) => {
+  console.log(`Email delivered: ${event.message_id}`);
+  console.log(`Recipient: ${event.email}`);
 });
 
-// Verify and process webhooks
+webhookHandler.on(WebhookEventType.OPEN)((event) => {
+  console.log(`Email opened: ${event.message_id}`);
+  // Access open-specific fields
+  if (event.event === WebhookEventType.OPEN) {
+    console.log(`Client IP: ${event.client_ip}`);
+    console.log(`Device: ${event.client_device}`);
+  }
+});
+
+webhookHandler.on(WebhookEventType.CLICK)((event) => {
+  console.log(`Link clicked: ${event.url}`);
+  // Access click-specific fields
+  if (event.event === WebhookEventType.CLICK) {
+    console.log(`Referer: ${event.referer}`);
+    console.log(`Client OS: ${event.client_os}`);
+  }
+});
+
+// Verify and process webhooks (supports both single events and batch mode)
 app.post('/webhook', (req, res) => {
-  const signature = req.headers['x-laneful-signature'];
+  const signature = req.headers['x-webhook-signature'];
   
-  if (!webhookHandler.verifySignature(req.body, signature)) {
+  if (!webhookHandler.verifySignature(JSON.stringify(req.body), signature)) {
     return res.status(401).send('Invalid signature');
   }
   
@@ -111,36 +141,98 @@ app.post('/webhook', (req, res) => {
 });
 ```
 
-**Events:** `email.sent`, `email.delivered`, `email.opened`, `email.clicked`, `email.bounced`, `email.complained`, `email.unsubscribed`, `email.failed`
+### Event Types
+
+**Available Events:** `delivery`, `open`, `click`, `drop`, `spam_complaint`, `unsubscribe`, `bounce`
+
+### Event-Specific Fields
+
+- **delivery**: Basic event fields only
+- **open**: `referer`, `client_name`, `client_os`, `client_ip`, `client_device`  
+- **click**: `url`, `referer`, `client_name`, `client_os`, `client_ip`, `client_device`
+- **drop**: `reason`
+- **spam_complaint**: `feedback_type`, `feedback_type_text`, `received_unix_timestamp`
+- **unsubscribe**: `unsubscribe_group_id` (number)
+- **bounce**: `code`, `extended_code`, `text`, `is_hard`, `deliverability_issue`
+
+### Batch Mode Support
+
+Webhooks support batch mode where multiple events are sent as an array:
+
+```typescript
+// Single event
+{
+  "event": "delivery",
+  "email": "user@example.com",
+  // ... other fields
+}
+
+// Batch mode (array of events)
+[
+  {
+    "event": "delivery",
+    "email": "user@example.com",
+    // ... other fields
+  },
+  {
+    "event": "open", 
+    "email": "user@example.com",
+    // ... other fields
+  }
+]
+```
 
 ## Examples
 
 ```typescript
 // Template email
 await client.sendEmail({
-  from: { email: 'app@example.com' },
-  to: [{ email: 'user@example.com' }],
-  subject: 'Welcome!',
-  templateId: 'welcome-123',
-  templateData: { name: 'John', activationLink: 'https://...' }
+  from: { email: 'noreply@yourdomain.com', name: 'Your App' },
+  to: [{ email: 'user@example.com', name: 'John Smith' }],
+  subject: 'Welcome to Our Service',
+  templateId: '1234',
+  templateData: {
+    user_name: 'John Smith',
+    company_name: 'Acme Corp',
+    activation_link: 'https://app.example.com/activate/abc123',
+    support_email: 'support@yourdomain.com'
+  }
 });
 
 // Email with attachment
 await client.sendEmail({
-  from: { email: 'sender@example.com' },
+  from: { email: 'sender@yourdomain.com' },
   to: [{ email: 'recipient@example.com' }],
   subject: 'Document',
   textContent: 'Please find attached.',
   attachments: [{
     contentType: 'application/pdf',
-    fileName: 'doc.pdf',
-    content: 'base64-content...'
+    fileName: 'document.pdf',
+    content: 'base64-encoded-content'
   }]
+});
+
+// Email with tracking settings
+await client.sendEmail({
+  from: { email: 'newsletter@yourdomain.com' },
+  to: [{ email: 'subscriber@example.com' }],
+  subject: 'Monthly Newsletter',
+  htmlContent: '<h1>Our Monthly Update</h1><p>Latest news and updates...</p>',
+  tag: 'newsletter',
+  tracking: {
+    opens: true,
+    clicks: true,
+    unsubscribes: true,
+    unsubscribeGroupId: 123
+  },
+  webhookData: {
+    campaign_id: 'camp_123'
+  }
 });
 
 // Scheduled email
 await client.sendEmail({
-  from: { email: 'sender@example.com' },
+  from: { email: 'sender@yourdomain.com' },
   to: [{ email: 'recipient@example.com' }],
   subject: 'Scheduled',
   textContent: 'This will be sent later.',
