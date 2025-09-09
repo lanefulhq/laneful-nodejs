@@ -28,8 +28,7 @@ const email: Email = {
   from: { email: 'noreply@yourdomain.com', name: 'Your App Name' },
   to: [{ email: 'user@example.com', name: 'User Name' }],
   subject: 'Welcome to Our Service',
-  textContent: 'Hello,\n\nWelcome to our service! We\'re excited to have you on board.\n\nIf you have any questions, feel free to reach out to our support team.\n\nBest regards,\nThe Team',
-  htmlContent: '<h1>Welcome!</h1><p>Hello,</p><p>Welcome to our service! We\'re excited to have you on board.</p><p>If you have any questions, feel free to reach out to our support team.</p><p>Best regards,<br>The Team</p>',
+  textContent: 'Welcome to our service!'
 };
 
 // Send the email
@@ -106,38 +105,38 @@ const webhookHandler = new WebhookHandler('your-webhook-secret');
 
 // Register event handlers
 webhookHandler.on(WebhookEventType.DELIVERY)((event) => {
-  console.log(`Email delivered: ${event.message_id}`);
-  console.log(`Recipient: ${event.email}`);
+    console.log(`Email delivered: ${event.message_id}`);
+    console.log(`Recipient: ${event.email}`);
 });
 
 webhookHandler.on(WebhookEventType.OPEN)((event) => {
-  console.log(`Email opened: ${event.message_id}`);
-  // Access open-specific fields
-  if (event.event === WebhookEventType.OPEN) {
-    console.log(`Client IP: ${event.client_ip}`);
-    console.log(`Device: ${event.client_device}`);
-  }
+    console.log(`Email opened: ${event.message_id}`);
+    // Access open-specific fields
+    if (event.event === WebhookEventType.OPEN) {
+        console.log(`Client IP: ${event.client_ip}`);
+        console.log(`Device: ${event.client_device}`);
+    }
 });
 
 webhookHandler.on(WebhookEventType.CLICK)((event) => {
-  console.log(`Link clicked: ${event.url}`);
-  // Access click-specific fields
-  if (event.event === WebhookEventType.CLICK) {
-    console.log(`Referer: ${event.referer}`);
-    console.log(`Client OS: ${event.client_os}`);
-  }
+    console.log(`Link clicked: ${event.url}`);
+    // Access click-specific fields
+    if (event.event === WebhookEventType.CLICK) {
+        console.log(`Referer: ${event.referer}`);
+        console.log(`Client OS: ${event.client_os}`);
+    }
 });
 
 // Verify and process webhooks (supports both single events and batch mode)
 app.post('/webhook', (req, res) => {
-  const signature = req.headers['x-webhook-signature'];
-  
-  if (!webhookHandler.verifySignature(JSON.stringify(req.body), signature)) {
-    return res.status(401).send('Invalid signature');
-  }
-  
-  webhookHandler.processWebhook(req.body);
-  res.status(200).send('OK');
+    const signature = req.headers['x-webhook-signature'];
+
+    if (!webhookHandler.verifySignature(JSON.stringify(req.body), signature)) {
+        return res.status(401).send('Invalid signature');
+    }
+
+    webhookHandler.processWebhook(req.body);
+    res.status(200).send('OK');
 });
 ```
 
@@ -236,25 +235,27 @@ await client.sendEmail({
   to: [{ email: 'recipient@example.com' }],
   subject: 'Scheduled',
   textContent: 'This will be sent later.',
-  sendTime: Math.floor(Date.now() / 1000) + 3600  // 1 hour from now
+  sendTime: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
 });
 ```
 
 ## Error Handling
 
 ```typescript
-import { LanefulError, LanefulAPIError, LanefulAuthError } from 'laneful';
+import { LanefulAPIError, LanefulAuthError, LanefulValidationError } from 'laneful';
 
 try {
   await client.sendEmail(email);
 } catch (error) {
-  if (error instanceof LanefulAuthError) {
-    console.error('Authentication failed');
-  } else if (error instanceof LanefulAPIError) {
-    console.error('API error:', error.statusCode);
-  } else {
-    console.error('Error:', error.message);
-  }
+  if (error instanceof LanefulValidationError) {
+        console.error('Validation error:', error.message);
+    } else if (error instanceof LanefulAuthError) {
+        console.error('Authentication failed');
+    } else if (error instanceof LanefulAPIError) {
+        console.error('API error:', error.statusCode);
+    } else {
+        console.error('Error:', error.message);
+    }
 }
 ```
 
