@@ -26,16 +26,16 @@
  */
 
 // Export main client
-export * from './client';
+export * from './client/index.js';
 
 // Export all models and types
-export * from './models';
+export * from './models/index.js';
 
 // Export webhook functionality
-export * from './webhooks';
+export * from './webhooks/index.js';
 
 // Export exceptions
-export * from './exceptions';
+export * from './exceptions/index.js';
 
 // Package version
 export const VERSION = '1.1.0';
