@@ -20,8 +20,8 @@
  *   htmlContent: '<h1>This is a test email.</h1>',
  * };
  *
- * const response = await client.sendEmail(email);
- * console.log(`Email sent successfully: ${response.status}`);
+ * const { status } = await client.sendEmail(email);
+ * console.log(`Email status: ${status}`);
  * ```
  */
 

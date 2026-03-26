@@ -98,3 +98,4 @@ logs
 
 # TypeScript
 *.tsbuildinfo
+.claude/

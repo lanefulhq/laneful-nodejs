@@ -1,11 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import {
-  Email,
-  EmailResponse,
-  EmailResponseList,
-  emailToApiFormat,
-  validateEmail,
-} from '../models';
+import { Email, SendEmailResponse, emailToApiFormat } from '../models';
 import {
   LanefulError,
   LanefulAPIError,
@@ -158,107 +152,40 @@ export class LanefulClient {
    * Send a single email.
    *
    * @param email - Email object to send
-   * @returns Promise resolving to EmailResponse with send status and message ID
-   * @throws {LanefulError} If sending fails
+   * @returns Promise resolving to {@link SendEmailResponse} with request status
+   * @throws {LanefulAuthError} If authentication fails
+   * @throws {LanefulAPIError} If the API returns an error
    */
-  async sendEmail(email: Email): Promise<EmailResponse> {
-    return this.sendEmails([email]).then((responses) => responses[0]!);
+  async sendEmail(email: Email): Promise<SendEmailResponse> {
+    return this.sendEmails([email]);
   }
 
   /**
    * Send multiple emails.
    *
    * @param emails - Array of Email objects to send
-   * @returns Promise resolving to array of EmailResponse objects
-   * @throws {LanefulError} If sending fails completely (all emails failed)
+   * @returns Promise resolving to {@link SendEmailResponse} with request status
+   * @throws {LanefulValidationError} If email list is empty
+   * @throws {LanefulAuthError} If authentication fails
+   * @throws {LanefulAPIError} If the API returns an error
    */
-  async sendEmails(emails: Email[]): Promise<EmailResponseList> {
+  async sendEmails(emails: Email[]): Promise<SendEmailResponse> {
     this.validateEmailsList(emails);
 
-    const validationErrors: Array<{ index: number; error: string }> = [];
-    const validEmailData: Array<{
-      data: Record<string, unknown>;
-      originalIndex: number;
-    }> = [];
-
-    // Validate all emails and collect validation errors
-    emails.forEach((email, index) => {
-      try {
-        validateEmail(email);
-        validEmailData.push({
-          data: emailToApiFormat(email),
-          originalIndex: index,
-        });
-      } catch (error) {
-        validationErrors.push({
-          index,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+    const responseData = await this.makeRequest('POST', '/email/send', {
+      emails: emails.map((email) => emailToApiFormat(email)),
     });
 
-    this.logger?.debug('Email validation completed', {
+    const response: SendEmailResponse = {
+      status: responseData.status as string,
+    };
+
+    this.logger?.info('Email send completed', {
       totalEmails: emails.length,
-      validEmails: validEmailData.length,
-      validationErrors: validationErrors.length,
+      status: response.status,
     });
 
-    // If all emails failed validation, throw an error
-    if (validEmailData.length === 0) {
-      const errorMessage = `All emails failed validation: ${validationErrors
-        .map((e) => `[${e.index}] ${e.error}`)
-        .join(', ')}`;
-      throw new LanefulValidationError(errorMessage);
-    }
-
-    let responses: EmailResponseList;
-
-    if (validEmailData.length > 0) {
-      try {
-        const responseData = await this.makeRequest('POST', '/email/send', {
-          emails: validEmailData.map((item) => item.data),
-        });
-
-        responses = this.processEmailsResponse(
-          responseData,
-          validEmailData,
-          emails.length
-        );
-      } catch (error) {
-        // If the API call fails completely, create error responses for valid emails
-        responses = validEmailData.map((item) => ({
-          status: 'failed' as const,
-          index: item.originalIndex,
-          error: error instanceof Error ? error.message : String(error),
-          success: false,
-        }));
-      }
-    } else {
-      responses = [];
-    }
-
-    // Add validation error responses
-    validationErrors.forEach(({ index, error }) => {
-      responses.splice(index, 0, {
-        status: 'validation_failed' as const,
-        index,
-        error,
-        success: false,
-      });
-    });
-
-    // Sort responses by index to maintain original order
-    responses.sort(
-      (a: EmailResponse, b: EmailResponse) => (a.index ?? 0) - (b.index ?? 0)
-    );
-
-    this.logger?.info('Bulk email send completed', {
-      totalEmails: emails.length,
-      successful: responses.filter((r: EmailResponse) => r.success).length,
-      failed: responses.filter((r: EmailResponse) => !r.success).length,
-    });
-
-    return responses;
+    return response;
   }
 
   /**
@@ -486,66 +413,6 @@ export class LanefulClient {
     }
 
     return responseData;
-  }
-
-  /**
-   * Process bulk email response.
-   *
-   * @param responseData - Response data from API
-   * @param validEmailData - Array of valid email data with original indices
-   * @param totalEmailCount - Total number of emails in the original batch
-   * @returns Array of EmailResponse objects
-   */
-  private processEmailsResponse(
-    responseData: Record<string, unknown>,
-    validEmailData: Array<{
-      data: Record<string, unknown>;
-      originalIndex: number;
-    }>,
-    totalEmailCount: number
-  ): EmailResponseList {
-    const responses: EmailResponseList = [];
-
-    // Handle API spec response format: {"status": "accepted"}
-    if (responseData.status === 'accepted') {
-      // Create successful responses for all valid emails
-      for (let i = 0; i < validEmailData.length; i++) {
-        const emailData = validEmailData[i];
-        if (!emailData) continue;
-
-        responses.push({
-          status: 'accepted' as const,
-          index: emailData.originalIndex,
-          error: undefined,
-          success: true,
-        });
-      }
-    } else {
-      // Handle error response format: {"error": "Invalid request or unauthorized"}
-      const errorMessage = (responseData.error as string) || 'Unknown error';
-
-      for (let i = 0; i < validEmailData.length; i++) {
-        const emailData = validEmailData[i];
-        if (!emailData) continue;
-
-        responses.push({
-          status: 'failed' as const,
-          index: emailData.originalIndex,
-          error: errorMessage,
-          success: false,
-        });
-      }
-    }
-
-    this.logger?.debug('Processed bulk email responses', {
-      validEmailCount: validEmailData.length,
-      totalEmailCount,
-      successfulResponses: responses.filter((r: EmailResponse) => r.success)
-        .length,
-      responseStatus: responseData.status,
-    });
-
-    return responses;
   }
 
   /**

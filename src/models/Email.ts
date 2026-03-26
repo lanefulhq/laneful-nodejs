@@ -1,9 +1,5 @@
-import { Address, addressToApiFormat, validateAddress } from './Address';
-import {
-  Attachment,
-  attachmentToApiFormat,
-  validateAttachment,
-} from './Attachment';
+import { Address, addressToApiFormat } from './Address';
+import { Attachment, attachmentToApiFormat } from './Attachment';
 import {
   TrackingSettings,
   trackingSettingsToApiFormat,
@@ -45,89 +41,6 @@ export interface Email {
   tag?: string;
   /** Tracking settings */
   tracking?: TrackingSettings;
-}
-
-/**
- * Validates an email object.
- */
-export function validateEmail(email: Email): void {
-  // Validate from address
-  if (!email.from) {
-    throw new Error('Email must have a from address');
-  }
-  validateAddress(email.from);
-
-  // Validate subject
-  if (!email.subject || typeof email.subject !== 'string') {
-    throw new Error('Email must have a valid subject string');
-  }
-
-  // Validate content
-  if (!email.textContent && !email.htmlContent && !email.templateId) {
-    throw new Error(
-      'Email must have either textContent, htmlContent, or templateId'
-    );
-  }
-
-  // Validate recipients
-  const hasRecipients =
-    (email.to && email.to.length > 0) ||
-    (email.cc && email.cc.length > 0) ||
-    (email.bcc && email.bcc.length > 0);
-
-  if (!hasRecipients) {
-    throw new Error('Email must have at least one recipient (to, cc, or bcc)');
-  }
-
-  // Validate all addresses
-  if (email.to) {
-    email.to.forEach((addr, index) => {
-      try {
-        validateAddress(addr);
-      } catch (error) {
-        throw new Error(`Invalid 'to' address at index ${index}: ${error}`);
-      }
-    });
-  }
-
-  if (email.cc) {
-    email.cc.forEach((addr, index) => {
-      try {
-        validateAddress(addr);
-      } catch (error) {
-        throw new Error(`Invalid 'cc' address at index ${index}: ${error}`);
-      }
-    });
-  }
-
-  if (email.bcc) {
-    email.bcc.forEach((addr, index) => {
-      try {
-        validateAddress(addr);
-      } catch (error) {
-        throw new Error(`Invalid 'bcc' address at index ${index}: ${error}`);
-      }
-    });
-  }
-
-  if (email.replyTo) {
-    try {
-      validateAddress(email.replyTo);
-    } catch (error) {
-      throw new Error(`Invalid 'replyTo' address: ${error}`);
-    }
-  }
-
-  // Validate attachments
-  if (email.attachments) {
-    email.attachments.forEach((attachment, index) => {
-      try {
-        validateAttachment(attachment);
-      } catch (error) {
-        throw new Error(`Invalid attachment at index ${index}: ${error}`);
-      }
-    });
-  }
 }
 
 /**
