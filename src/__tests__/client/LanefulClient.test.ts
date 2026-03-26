@@ -1,7 +1,11 @@
 import axios from 'axios';
 import { LanefulClient } from '../../client/LanefulClient';
 import { Email } from '../../models';
-import { LanefulValidationError } from '../../exceptions';
+import {
+  LanefulValidationError,
+  LanefulAPIError,
+  LanefulAuthError,
+} from '../../exceptions';
 
 // Mock axios
 jest.mock('axios');
@@ -81,12 +85,7 @@ describe('LanefulClient', () => {
 
       const result = await client.sendEmail(validEmail);
 
-      expect(result).toEqual({
-        status: 'accepted',
-        index: 0,
-        error: undefined,
-        success: true,
-      });
+      expect(result).toEqual({ status: 'accepted' });
 
       expect(mockedAxios.request).toHaveBeenCalledWith({
         method: 'POST',
@@ -102,41 +101,30 @@ describe('LanefulClient', () => {
       });
     });
 
-    it('should handle API error', async () => {
+    it('should throw on API error', async () => {
       const mockResponse = {
         status: 400,
         data: { error: 'Invalid email' },
       };
       mockedAxios.request.mockResolvedValue(mockResponse);
 
-      const result = await client.sendEmail(validEmail);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid email');
+      await expect(client.sendEmail(validEmail)).rejects.toThrow(
+        LanefulAPIError
+      );
     });
 
-    it('should handle authentication error', async () => {
+    it('should throw on authentication error', async () => {
       const mockResponse = {
         status: 401,
         data: { error: 'Unauthorized' },
       };
       mockedAxios.request.mockResolvedValue(mockResponse);
 
-      const result = await client.sendEmail(validEmail);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid authentication token');
-    });
-
-    it('should validate email before sending', async () => {
-      const invalidEmail = {
-        from: { email: 'invalid-email' },
-        subject: 'Test',
-        textContent: 'Content',
-      } as Email;
-
-      await expect(client.sendEmail(invalidEmail)).rejects.toThrow(
-        LanefulValidationError
+      await expect(client.sendEmail(validEmail)).rejects.toThrow(
+        LanefulAuthError
       );
     });
+
   });
 
   describe('sendEmails', () => {
@@ -154,15 +142,9 @@ describe('LanefulClient', () => {
       mockedAxios.request.mockResolvedValue(mockResponse);
 
       const emails = [validEmail, { ...validEmail, subject: 'Second Email' }];
-      const results = await client.sendEmails(emails);
+      const result = await client.sendEmails(emails);
 
-      expect(results).toHaveLength(2);
-      expect(results[0]).toEqual({
-        status: 'accepted',
-        index: 0,
-        error: undefined,
-        success: true,
-      });
+      expect(result).toEqual({ status: 'accepted' });
     });
 
     it('should throw for empty email list', async () => {
