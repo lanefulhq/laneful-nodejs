@@ -1,11 +1,20 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { Email, SendEmailResponse, emailToApiFormat } from '../models';
+import {
+  Email,
+  MailSettings,
+  SendEmailResponse,
+  emailToApiFormat,
+  mailSettingsToApiFormat,
+} from '../models';
 import {
   LanefulError,
   LanefulAPIError,
   LanefulAuthError,
   LanefulValidationError,
 } from '../exceptions';
+import { VERSION } from '../version';
+
+const DEFAULT_USER_AGENT = `laneful-nodejs/${VERSION}`;
 
 /**
  * Logger interface for custom logging.
@@ -125,7 +134,7 @@ export class LanefulClient {
       jitter: options.retry?.jitter ?? 0.1,
     };
 
-    const { timeout = 30000, userAgent = 'laneful-nodejs/1.0.0' } = options;
+    const { timeout = 30000, userAgent = DEFAULT_USER_AGENT } = options;
 
     this.httpClient = axios.create({
       baseURL: `${this.baseUrl}/v1`,
@@ -152,29 +161,47 @@ export class LanefulClient {
    * Send a single email.
    *
    * @param email - Email object to send
+   * @param settings - Optional mail settings for this request
    * @returns Promise resolving to {@link SendEmailResponse} with request status
    * @throws {LanefulAuthError} If authentication fails
    * @throws {LanefulAPIError} If the API returns an error
    */
-  async sendEmail(email: Email): Promise<SendEmailResponse> {
-    return this.sendEmails([email]);
+  async sendEmail(
+    email: Email,
+    settings?: MailSettings
+  ): Promise<SendEmailResponse> {
+    return this.sendEmails([email], settings);
   }
 
   /**
    * Send multiple emails.
    *
    * @param emails - Array of Email objects to send
+   * @param settings - Optional mail settings for this request
    * @returns Promise resolving to {@link SendEmailResponse} with request status
    * @throws {LanefulValidationError} If email list is empty
    * @throws {LanefulAuthError} If authentication fails
    * @throws {LanefulAPIError} If the API returns an error
    */
-  async sendEmails(emails: Email[]): Promise<SendEmailResponse> {
+  async sendEmails(
+    emails: Email[],
+    settings?: MailSettings
+  ): Promise<SendEmailResponse> {
     this.validateEmailsList(emails);
 
-    const responseData = await this.makeRequest('POST', '/email/send', {
+    const requestData: Record<string, unknown> = {
       emails: emails.map((email) => emailToApiFormat(email)),
-    });
+    };
+
+    if (settings) {
+      requestData.mail_settings = mailSettingsToApiFormat(settings);
+    }
+
+    const responseData = await this.makeRequest(
+      'POST',
+      '/email/send',
+      requestData
+    );
 
     const response: SendEmailResponse = {
       status: responseData.status as string,

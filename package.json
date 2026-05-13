@@ -1,6 +1,6 @@
 {
   "name": "laneful",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "TypeScript/JavaScript client library for the Laneful API",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -20,6 +20,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "prebuild": "node -p \"'export const VERSION = ' + JSON.stringify(require('./package.json').version) + ';'\" > src/version.ts",
     "build": "npm run clean && npm run build:cjs && npm run build:esm && npm run build:types",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:esm": "tsc -p tsconfig.esm.json",

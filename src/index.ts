@@ -24,7 +24,6 @@
  * console.log(`Email status: ${status}`);
  * ```
  */
-
 // Export main client
 export * from './client/index.js';
 
@@ -38,4 +37,4 @@ export * from './webhooks/index.js';
 export * from './exceptions/index.js';
 
 // Package version
-export const VERSION = '1.1.0';
+export { VERSION } from './version.js';

@@ -14,6 +14,18 @@ describe('WebhookHandler', () => {
     timestamp: 1753502407,
   };
 
+  const sampleRequestPayload = {
+    email: 'kane.isturm@gmail.com',
+    event: 'request',
+    id: '019e1edaaf4f76329f2f59ea2d6bd814',
+    lane_id: '',
+    message_id: 'H-0-019e1edaaf31778197ca256c9b23dd6a-21194',
+    metadata: {},
+    mx_host: 'gmail-smtp-in.l.google.com',
+    tag: '',
+    timestamp: 1778634108,
+  };
+
   const sampleOpenPayload = {
     event: 'open',
     message_id: 'H-1-019844e340027d728a7cfda632e14d0b',
@@ -275,6 +287,24 @@ describe('WebhookHandler', () => {
           client_device: 'Mobile',
         })
       );
+    });
+
+    it('should handle event-specific fields for request events', async () => {
+      handler.registerHandler('request', mockHandler);
+
+      await handler.processWebhook(sampleRequestPayload);
+
+      expect(mockHandler).toHaveBeenCalledWith({
+        email: 'kane.isturm@gmail.com',
+        event: 'request',
+        id: '019e1edaaf4f76329f2f59ea2d6bd814',
+        lane_id: '',
+        message_id: 'H-0-019e1edaaf31778197ca256c9b23dd6a-21194',
+        metadata: {},
+        mx_host: 'gmail-smtp-in.l.google.com',
+        tag: '',
+        timestamp: 1778634108,
+      });
     });
 
     it('should handle event-specific fields for bounce events', async () => {
