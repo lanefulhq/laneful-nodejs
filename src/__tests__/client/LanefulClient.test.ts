@@ -101,6 +101,32 @@ describe('LanefulClient', () => {
       });
     });
 
+    it('should send email with mail settings', async () => {
+      const mockResponse = {
+        status: 200,
+        data: { status: 'accepted' },
+      };
+      mockedAxios.request.mockResolvedValue(mockResponse);
+
+      const result = await client.sendEmail(validEmail, {
+        sandboxMode: true,
+        returnMessageIds: true,
+      });
+
+      expect(result).toEqual({ status: 'accepted' });
+
+      expect(mockedAxios.request).toHaveBeenCalledWith({
+        method: 'POST',
+        url: '/email/send',
+        data: expect.objectContaining({
+          mail_settings: {
+            sandbox_mode: true,
+            return_message_ids: true,
+          },
+        }),
+      });
+    });
+
     it('should throw on API error', async () => {
       const mockResponse = {
         status: 400,
@@ -144,6 +170,33 @@ describe('LanefulClient', () => {
       const result = await client.sendEmails(emails);
 
       expect(result).toEqual({ status: 'accepted' });
+    });
+
+    it('should send multiple emails with mail settings', async () => {
+      const mockResponse = {
+        status: 200,
+        data: { status: 'accepted' },
+      };
+      mockedAxios.request.mockResolvedValue(mockResponse);
+
+      const emails = [validEmail, { ...validEmail, subject: 'Second Email' }];
+      const result = await client.sendEmails(emails, {
+        sandboxMode: true,
+        returnMessageIds: false,
+      });
+
+      expect(result).toEqual({ status: 'accepted' });
+
+      expect(mockedAxios.request).toHaveBeenCalledWith({
+        method: 'POST',
+        url: '/email/send',
+        data: expect.objectContaining({
+          mail_settings: {
+            sandbox_mode: true,
+            return_message_ids: false,
+          },
+        }),
+      });
     });
 
     it('should throw for empty email list', async () => {

@@ -2,6 +2,7 @@
  * Webhook event types.
  */
 export enum WebhookEventType {
+  REQUEST = 'request',
   DELIVERY = 'delivery',
   OPEN = 'open',
   CLICK = 'click',
@@ -22,6 +23,15 @@ export interface BaseWebhookEvent {
   metadata: Record<string, unknown>;
   tag: string;
   timestamp: number;
+}
+
+/**
+ * Request event - Email send request accepted.
+ */
+export interface RequestEvent extends BaseWebhookEvent {
+  event: WebhookEventType.REQUEST;
+  id: string;
+  mx_host: string;
 }
 
 /**
@@ -98,6 +108,7 @@ export interface BounceEvent extends BaseWebhookEvent {
  * Union type for all webhook events.
  */
 export type WebhookEvent =
+  | RequestEvent
   | DeliveryEvent
   | OpenEvent
   | ClickEvent
@@ -129,6 +140,13 @@ export function createWebhookEvent(
 
   // Return event with specific type and additional fields
   switch (baseEvent.event) {
+    case WebhookEventType.REQUEST:
+      return {
+        ...baseEvent,
+        id: (data.id as string) ?? '',
+        mx_host: (data.mx_host as string) ?? '',
+      } as RequestEvent;
+
     case WebhookEventType.DELIVERY:
       return baseEvent as DeliveryEvent;
 
