@@ -77,6 +77,21 @@ describe('TrackingSettings', () => {
       expect(result).not.toHaveProperty('unsubscribe_group_id');
     });
 
+    it('should include unsubscribe group name when provided', () => {
+      const tracking: TrackingSettings = {
+        unsubscribeGroupName: 'Newsletters',
+      };
+
+      const result = trackingSettingsToApiFormat(tracking);
+
+      expect(result).toEqual({
+        opens: true,
+        clicks: true,
+        unsubscribes: true,
+        unsubscribe_group_name: 'Newsletters',
+      });
+    });
+
     it('should handle zero as valid unsubscribe group ID', () => {
       const tracking: TrackingSettings = {
         unsubscribeGroupId: 0,

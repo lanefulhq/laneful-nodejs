@@ -10,6 +10,8 @@ export interface TrackingSettings {
   unsubscribes?: boolean;
   /** Unsubscribe group ID */
   unsubscribeGroupId?: number;
+  /** Unsubscribe group name (ignored if unsubscribeGroupId is set) */
+  unsubscribeGroupName?: string;
 }
 
 /**
@@ -26,6 +28,10 @@ export function trackingSettingsToApiFormat(
 
   if (tracking.unsubscribeGroupId !== undefined) {
     result.unsubscribe_group_id = tracking.unsubscribeGroupId;
+  }
+
+  if (tracking.unsubscribeGroupName !== undefined) {
+    result.unsubscribe_group_name = tracking.unsubscribeGroupName;
   }
 
   return result;

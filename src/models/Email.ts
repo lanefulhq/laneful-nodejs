@@ -1,3 +1,4 @@
+import { LanefulValidationError } from '../exceptions';
 import { Address, addressToApiFormat } from './Address';
 import { Attachment, attachmentToApiFormat } from './Attachment';
 import {
@@ -41,6 +42,8 @@ export interface Email {
   tag?: string;
   /** Tracking settings */
   tracking?: TrackingSettings;
+  /** Visible From header (separate from envelope from) */
+  fromHeader?: Address;
 }
 
 /**
@@ -64,6 +67,10 @@ export function emailToApiFormat(email: Email): Record<string, unknown> {
     tag: email.tag ?? '',
   };
 
+  if (email.fromHeader) {
+    result.from_header = addressToApiFormat(email.fromHeader);
+  }
+
   if (email.replyTo) {
     result.reply_to = addressToApiFormat(email.replyTo);
   }
@@ -72,5 +79,33 @@ export function emailToApiFormat(email: Email): Record<string, unknown> {
     result.tracking = trackingSettingsToApiFormat(email.tracking);
   }
 
+  validateWebhookData(email.webhookData);
+
   return result;
+}
+
+function validateWebhookData(data?: Record<string, string>): void {
+  if (!data) {
+    return;
+  }
+
+  const keys = Object.keys(data);
+  if (keys.length > 20) {
+    throw new LanefulValidationError(
+      'Webhook data cannot have more than 20 keys'
+    );
+  }
+
+  for (const [key, value] of Object.entries(data)) {
+    if (key.length > 50) {
+      throw new LanefulValidationError(
+        'Webhook data keys cannot exceed 50 characters'
+      );
+    }
+    if (String(value).length > 100) {
+      throw new LanefulValidationError(
+        'Webhook data values cannot exceed 100 characters'
+      );
+    }
+  }
 }

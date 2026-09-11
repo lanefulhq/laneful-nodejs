@@ -1,10 +1,42 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import {
+  CreateDomainRequest,
+  Domain,
   Email,
+  ListDomainSpamRatioRadarParams,
+  ListDomainSpamRatioRadarResponse,
+  ListDomainsParams,
+  ListDomainsResponse,
+  ListGooglePostmasterSpamReportsParams,
+  ListGooglePostmasterSpamReportsResponse,
+  ListSndsReportsParams,
+  ListSndsReportsResponse,
+  ListUnsubscribeGroupsParams,
+  ListUnsubscribeGroupsResponse,
   MailSettings,
+  QueryItems,
   SendEmailResponse,
+  SuccessResponse,
+  UnsubscribeGroup,
+  UpdateDomainRequest,
+  createDomainRequestToApi,
+  domainFromApi,
   emailToApiFormat,
+  listDomainSpamRatioRadarParamsToQuery,
+  listDomainSpamRatioRadarResponseFromApi,
+  listDomainsParamsToQuery,
+  listDomainsResponseFromApi,
+  listGooglePostmasterSpamReportsParamsToQuery,
+  listGooglePostmasterSpamReportsResponseFromApi,
+  listSndsReportsParamsToQuery,
+  listSndsReportsResponseFromApi,
+  listUnsubscribeGroupsParamsToQuery,
+  listUnsubscribeGroupsResponseFromApi,
   mailSettingsToApiFormat,
+  parseUnsubscribeGroup,
+  sendEmailResponseFromApi,
+  successResponseFromApi,
+  updateDomainRequestToApi,
 } from '../models';
 import {
   LanefulError,
@@ -71,7 +103,11 @@ export interface LanefulClientOptions {
 }
 
 /**
- * Laneful API client for sending emails.
+ * Laneful API client for sending emails and managing organization resources.
+ *
+ * Email sending uses a send host (https://your-endpoint.send.laneful.net).
+ * Domain, unsubscribe-group, and analytics endpoints use the organization
+ * API host (https://api.laneful.net).
  *
  * @example
  * ```typescript
@@ -203,9 +239,7 @@ export class LanefulClient {
       requestData
     );
 
-    const response: SendEmailResponse = {
-      status: responseData.status as string,
-    };
+    const response = sendEmailResponseFromApi(responseData);
 
     this.logger?.info('Email send completed', {
       totalEmails: emails.length,
@@ -213,6 +247,223 @@ export class LanefulClient {
     });
 
     return response;
+  }
+
+  /**
+   * List unsubscribe groups for a workspace.
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async listUnsubscribeGroups(
+    workspaceId: number,
+    params?: ListUnsubscribeGroupsParams
+  ): Promise<ListUnsubscribeGroupsResponse> {
+    return listUnsubscribeGroupsResponseFromApi(
+      await this.makeRequest(
+        'GET',
+        `/workspaces/${workspaceId}/unsubscribe-groups`,
+        undefined,
+        params ? listUnsubscribeGroupsParamsToQuery(params) : undefined
+      )
+    );
+  }
+
+  /**
+   * Create an unsubscribe group in a workspace.
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async createUnsubscribeGroup(
+    workspaceId: number,
+    name: string
+  ): Promise<UnsubscribeGroup> {
+    return parseUnsubscribeGroup(
+      await this.makeRequest(
+        'POST',
+        `/workspaces/${workspaceId}/unsubscribe-groups`,
+        { name }
+      )
+    );
+  }
+
+  /**
+   * Update an unsubscribe group.
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async updateUnsubscribeGroup(
+    workspaceId: number,
+    unsubscribeGroupId: number,
+    name: string
+  ): Promise<UnsubscribeGroup> {
+    return parseUnsubscribeGroup(
+      await this.makeRequest(
+        'PATCH',
+        `/workspaces/${workspaceId}/unsubscribe-groups/${unsubscribeGroupId}`,
+        { name }
+      )
+    );
+  }
+
+  /**
+   * List sending domains for a workspace.
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async listDomains(
+    workspaceId: number,
+    params?: ListDomainsParams
+  ): Promise<ListDomainsResponse> {
+    return listDomainsResponseFromApi(
+      await this.makeRequest(
+        'GET',
+        `/workspaces/${workspaceId}/domains`,
+        undefined,
+        params ? listDomainsParamsToQuery(params) : undefined
+      )
+    );
+  }
+
+  /**
+   * Get a single sending domain by name.
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async getDomain(workspaceId: number, domain: string): Promise<Domain> {
+    const encoded = this.encodePath(domain);
+    return domainFromApi(
+      await this.makeRequest(
+        'GET',
+        `/workspaces/${workspaceId}/domains/${encoded}`
+      )
+    );
+  }
+
+  /**
+   * Create a sending domain in a workspace.
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async createDomain(
+    workspaceId: number,
+    request: CreateDomainRequest
+  ): Promise<Domain> {
+    return domainFromApi(
+      await this.makeRequest(
+        'POST',
+        `/workspaces/${workspaceId}/domains`,
+        createDomainRequestToApi(request)
+      )
+    );
+  }
+
+  /**
+   * Update a domain's mutable settings (currently the email track).
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async updateDomain(
+    workspaceId: number,
+    domain: string,
+    request: UpdateDomainRequest
+  ): Promise<Domain> {
+    const encoded = this.encodePath(domain);
+    return domainFromApi(
+      await this.makeRequest(
+        'PATCH',
+        `/workspaces/${workspaceId}/domains/${encoded}`,
+        updateDomainRequestToApi(request)
+      )
+    );
+  }
+
+  /**
+   * Trigger DNS verification for a domain.
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async verifyDomain(workspaceId: number, domain: string): Promise<Domain> {
+    const encoded = this.encodePath(domain);
+    return domainFromApi(
+      await this.makeRequest(
+        'POST',
+        `/workspaces/${workspaceId}/domains/${encoded}/verify`
+      )
+    );
+  }
+
+  /**
+   * Delete a sending domain from a workspace.
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async deleteDomain(
+    workspaceId: number,
+    domain: string
+  ): Promise<SuccessResponse> {
+    const encoded = this.encodePath(domain);
+    return successResponseFromApi(
+      await this.makeRequest(
+        'DELETE',
+        `/workspaces/${workspaceId}/domains/${encoded}`
+      )
+    );
+  }
+
+  /**
+   * List domains whose spam complaint ratio reached a critical level.
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async listDomainSpamRatioRadar(
+    params?: ListDomainSpamRatioRadarParams
+  ): Promise<ListDomainSpamRatioRadarResponse> {
+    return listDomainSpamRatioRadarResponseFromApi(
+      await this.makeRequest(
+        'GET',
+        '/analytics/radar/domain-spam-ratio',
+        undefined,
+        params ? listDomainSpamRatioRadarParamsToQuery(params) : undefined
+      )
+    );
+  }
+
+  /**
+   * List daily Google Postmaster Tools spam-rate reports.
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async listGooglePostmasterSpamReports(
+    params?: ListGooglePostmasterSpamReportsParams
+  ): Promise<ListGooglePostmasterSpamReportsResponse> {
+    return listGooglePostmasterSpamReportsResponseFromApi(
+      await this.makeRequest(
+        'GET',
+        '/analytics/google-postmaster/spam-reports',
+        undefined,
+        params
+          ? listGooglePostmasterSpamReportsParamsToQuery(params)
+          : undefined
+      )
+    );
+  }
+
+  /**
+   * List daily Microsoft SNDS reports for the organization's sending IPs.
+   *
+   * Uses the organization API host (https://api.laneful.net).
+   */
+  async listSndsReports(
+    params?: ListSndsReportsParams
+  ): Promise<ListSndsReportsResponse> {
+    return listSndsReportsResponseFromApi(
+      await this.makeRequest(
+        'GET',
+        '/analytics/microsoft-snds/reports',
+        undefined,
+        params ? listSndsReportsParamsToQuery(params) : undefined
+      )
+    );
   }
 
   /**
@@ -305,15 +556,17 @@ export class LanefulClient {
    * @param method - HTTP method
    * @param endpoint - API endpoint path
    * @param data - Request data to send as JSON
+   * @param params - Query string items (repeated keys supported)
    * @returns Promise resolving to response data
    * @throws {LanefulAuthError} If authentication fails
    * @throws {LanefulAPIError} If the API returns an error
    * @throws {LanefulError} For other client errors
    */
   private async makeRequest(
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     endpoint: string,
-    data?: Record<string, unknown>
+    data?: Record<string, unknown>,
+    params?: QueryItems
   ): Promise<Record<string, unknown>> {
     this.checkRateLimit();
 
@@ -331,7 +584,10 @@ export class LanefulClient {
         const response: AxiosResponse = await this.httpClient.request({
           method,
           url: endpoint,
-          data,
+          ...(data !== undefined ? { data } : {}),
+          ...(params && params.length > 0
+            ? { params: this.toSearchParams(params) }
+            : {}),
         });
 
         this.logger?.debug('Request completed', {
@@ -440,6 +696,26 @@ export class LanefulClient {
     }
 
     return responseData;
+  }
+
+  /**
+   * URL-encode a path segment (RFC 3986 unreserved: A-Z a-z 0-9 - . _ ~).
+   */
+  private encodePath(value: string): string {
+    return encodeURIComponent(value).replace(/[!'()*]/g, (char) => {
+      return `%${char.charCodeAt(0).toString(16).toUpperCase()}`;
+    });
+  }
+
+  /**
+   * Convert query items to URLSearchParams so repeated keys are preserved.
+   */
+  private toSearchParams(params: QueryItems): URLSearchParams {
+    const search = new URLSearchParams();
+    for (const [key, value] of params) {
+      search.append(key, value);
+    }
+    return search;
   }
 
   /**
