@@ -1,6 +1,6 @@
 {
   "name": "laneful",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "TypeScript/JavaScript client library for the Laneful API",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",

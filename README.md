@@ -48,11 +48,11 @@ try {
 // Initialize client
 const client = new LanefulClient(baseUrl, authToken, options?)
 
-// Send single email
-await client.sendEmail(email: Email): Promise<EmailResponse>
+// Send single email (optional mail settings)
+await client.sendEmail(email: Email, settings?: MailSettings): Promise<SendEmailResponse>
 
 // Send bulk emails
-await client.sendEmails(emails: Email[]): Promise<EmailResponse[]>
+await client.sendEmails(emails: Email[], settings?: MailSettings): Promise<SendEmailResponse>
 ```
 
 ### Core Interfaces
@@ -75,6 +75,7 @@ interface Email {
   webhookData?: Record<string, string>;
   tag?: string;
   tracking?: TrackingSettings;
+  fromHeader?: Address;     // Visible From header
 }
 
 interface Address {
@@ -92,8 +93,30 @@ interface TrackingSettings {
   opens?: boolean;          // Track email opens (default: true)
   clicks?: boolean;         // Track link clicks (default: true)
   unsubscribes?: boolean;   // Track unsubscribes (default: true)
-  unsubscribeGroupId?: number; // Optional unsubscribe group ID
+  unsubscribeGroupId?: number;   // Optional unsubscribe group ID
+  unsubscribeGroupName?: string; // Ignored if unsubscribeGroupId is set
 }
+
+interface MailSettings {
+  sandboxMode?: boolean;       // Do not persist or send
+  returnMessageIds?: boolean;  // Include message_ids in the response
+}
+
+interface SendEmailResponse {
+  status: string;
+  messageIds?: string[];
+  messageId?: string;
+}
+```
+
+### Mail settings
+
+```typescript
+const response = await client.sendEmail(email, {
+  sandboxMode: true,
+  returnMessageIds: true,
+});
+console.log(response.status, response.messageIds);
 ```
 
 ## Webhooks
@@ -142,10 +165,11 @@ app.post('/webhook', (req, res) => {
 
 ### Event Types
 
-**Available Events:** `delivery`, `open`, `click`, `drop`, `spam_complaint`, `unsubscribe`, `bounce`
+**Available Events:** `request`, `delivery`, `open`, `click`, `drop`, `spam_complaint`, `unsubscribe`, `bounce`
 
 ### Event-Specific Fields
 
+- **request**: `id`, `mx_host`
 - **delivery**: Basic event fields only
 - **open**: `referer`, `client_name`, `client_os`, `client_ip`, `client_device`  
 - **click**: `url`, `referer`, `client_name`, `client_os`, `client_ip`, `client_device`
@@ -222,7 +246,9 @@ await client.sendEmail({
     opens: true,
     clicks: true,
     unsubscribes: true,
-    unsubscribeGroupId: 123
+    unsubscribeGroupId: 123,
+    // ignored if unsubscribeGroupId is set
+    unsubscribeGroupName: 'Newsletters',
   },
   webhookData: {
     campaign_id: 'camp_123'
@@ -237,6 +263,68 @@ await client.sendEmail({
   textContent: 'This will be sent later.',
   sendTime: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
 });
+```
+
+## Domain, unsubscribe groups, and analytics
+
+These endpoints live on the organization API host. Point the client at it:
+
+```typescript
+const client = new LanefulClient(
+  'https://api.laneful.net',
+  'your-auth-token'
+);
+```
+
+Development uses `https://api.dev.laneful.net`.
+
+### Unsubscribe groups
+
+```typescript
+const groups = await client.listUnsubscribeGroups(42, { limit: 50 });
+const created = await client.createUnsubscribeGroup(42, 'Newsletters');
+const updated = await client.updateUnsubscribeGroup(
+  42,
+  created.unsubscribeGroupId,
+  'Weekly Newsletters'
+);
+```
+
+### Domains
+
+```typescript
+const listing = await client.listDomains(42, { limit: 50 });
+const domain = await client.createDomain(42, {
+  domain: 'mydomain.com',
+  tracking: 'tracking',
+  returnPath: 'return-path',
+});
+await client.getDomain(42, 'mydomain.com');
+await client.verifyDomain(42, 'mydomain.com');
+
+// Set the email track; pass "" to clear it, or omit emailTrackId to leave it unchanged
+await client.updateDomain(42, 'mydomain.com', {
+  emailTrackId: 'e59f0a35-05bc-4516-b585-c06f69c3e67e',
+});
+
+await client.deleteDomain(42, 'mydomain.com');
+```
+
+### Deliverability analytics
+
+```typescript
+const radar = await client.listDomainSpamRatioRadar({
+  workspaceIds: [1, 2],
+  domain: 'example.com',
+  startDate: '2026-09-01',
+  endDate: '2026-09-08',
+});
+
+const postmaster = await client.listGooglePostmasterSpamReports({
+  domain: 'example.com',
+});
+
+const snds = await client.listSndsReports({ ip: '203.0.113.5' });
 ```
 
 ## Error Handling

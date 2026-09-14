@@ -4,4 +4,5 @@ export * from './Attachment';
 export * from './TrackingSettings';
 export * from './MailSettings';
 export * from './Email';
-export { SendEmailResponse } from './EmailResponse';
+export { SendEmailResponse, sendEmailResponseFromApi } from './EmailResponse';
+export * from './org';

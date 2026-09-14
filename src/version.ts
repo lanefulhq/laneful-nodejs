@@ -1,1 +1,1 @@
-export const VERSION = 'VERSION_PLACEHOLDER';
+export const VERSION = '2.2.0';
