@@ -185,9 +185,15 @@ app.post('/webhook', (req, res) => {
 
 **Available Events:** `request`, `delivery`, `open`, `click`, `drop`, `spam_complaint`, `unsubscribe`, `bounce`
 
+Temporary delivery failures (deferrals) are sent as `bounce` events with `is_hard: false` while Laneful keeps retrying for up to 72 hours. A permanent failure is a `bounce` with `is_hard: true`, and when retries run out after 72 hours the final event is a `bounce` with `is_hard: true` (a `drop` on relay lanes).
+
+### Event Fields
+
+Every event has `id`, `event`, `email`, `message_id`, `lane_id`, `tag`, `timestamp` and `metadata` (the `webhookData` sent with the email). `id` is unique per event and stays the same when Laneful delivers the event again on retry or in a batch, so use it to skip events you have already processed.
+
 ### Event-Specific Fields
 
-- **request**: `id`, `mx_host`
+- **request**: `mx_host`
 - **delivery**: Basic event fields only
 - **open**: `referer`, `client_name`, `client_os`, `client_ip`, `client_device`  
 - **click**: `url`, `referer`, `client_name`, `client_os`, `client_ip`, `client_device`

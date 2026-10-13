@@ -16,6 +16,8 @@ export enum WebhookEventType {
  * Base webhook event interface with common fields.
  */
 export interface BaseWebhookEvent {
+  /** Unique event ID, unchanged when the same event is delivered again on retry. */
+  id: string;
   email: string;
   event: WebhookEventType;
   lane_id: string;
@@ -30,7 +32,6 @@ export interface BaseWebhookEvent {
  */
 export interface RequestEvent extends BaseWebhookEvent {
   event: WebhookEventType.REQUEST;
-  id: string;
   mx_host: string;
 }
 
@@ -129,6 +130,7 @@ export function createWebhookEvent(
   data: Record<string, unknown>
 ): WebhookEvent {
   const baseEvent: BaseWebhookEvent = {
+    id: (data.id as string) ?? '',
     email: (data.email as string) ?? '',
     event: (data.event as WebhookEventType) ?? ('' as WebhookEventType),
     lane_id: (data.lane_id as string) ?? '',
@@ -143,7 +145,6 @@ export function createWebhookEvent(
     case WebhookEventType.REQUEST:
       return {
         ...baseEvent,
-        id: (data.id as string) ?? '',
         mx_host: (data.mx_host as string) ?? '',
       } as RequestEvent;
 

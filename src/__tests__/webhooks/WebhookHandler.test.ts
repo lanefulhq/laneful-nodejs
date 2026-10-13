@@ -5,6 +5,7 @@ import { WebhookEvent, WebhookEventType } from '../../webhooks/WebhookTypes';
 describe('WebhookHandler', () => {
   const webhookSecret = 'test-secret';
   const sampleDeliveryPayload = {
+    id: '019844e340057c1a9b2d3e4f5a6b7c8d',
     event: 'delivery',
     message_id: 'H-1-019844e340027d728a7cfda632e14d0a',
     email: 'user@example.com',
@@ -158,6 +159,7 @@ describe('WebhookHandler', () => {
       await handler.processWebhook(sampleDeliveryPayload);
 
       expect(mockHandler).toHaveBeenCalledWith({
+        id: '019844e340057c1a9b2d3e4f5a6b7c8d',
         email: 'user@example.com',
         event: 'delivery',
         lane_id: '5805dd85-ed8c-44db-91a7-1d53a41c86a5',
@@ -232,6 +234,7 @@ describe('WebhookHandler', () => {
       handler.registerHandler('delivery', mockHandler);
 
       const event: WebhookEvent = {
+        id: 'evt-456',
         email: 'manual@example.com',
         event: WebhookEventType.DELIVERY,
         lane_id: 'lane-456',
@@ -321,6 +324,16 @@ describe('WebhookHandler', () => {
           is_hard: true,
           deliverability_issue: 'invalid_recipient',
         })
+      );
+    });
+
+    it('should copy the event id for every event type', async () => {
+      handler.registerHandler('open', mockHandler);
+
+      await handler.processWebhook({ ...sampleOpenPayload, id: 'evt-open-1' });
+
+      expect(mockHandler).toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'open', id: 'evt-open-1' })
       );
     });
 
