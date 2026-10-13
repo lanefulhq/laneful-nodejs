@@ -327,6 +327,86 @@ describe('WebhookHandler', () => {
       );
     });
 
+    it('should keep mx_host and relay on delivery events', async () => {
+      handler.registerHandler('delivery', mockHandler);
+
+      // Shape of a real delivery event.
+      await handler.processWebhook({
+        ...sampleDeliveryPayload,
+        mx_host: 'aspmx.l.google.com',
+        relay: true,
+      });
+
+      expect(mockHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'delivery',
+          mx_host: 'aspmx.l.google.com',
+          relay: true,
+        })
+      );
+    });
+
+    it('should keep classification on bounce events and is_machine on clicks', async () => {
+      handler.registerHandler('bounce', mockHandler);
+      handler.registerHandler('click', mockHandler);
+
+      await handler.processWebhook([
+        {
+          ...sampleDeliveryPayload,
+          event: 'bounce',
+          code: '550',
+          text: 'no such user',
+          is_hard: true,
+          classification: 'Mailbox Unavailable',
+        },
+        {
+          ...sampleDeliveryPayload,
+          event: 'click',
+          url: 'https://example.com',
+          is_machine: true,
+        },
+      ]);
+
+      expect(mockHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'bounce',
+          classification: 'Mailbox Unavailable',
+        })
+      );
+      expect(mockHandler).toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'click', is_machine: true })
+      );
+    });
+
+    it('should pass through fields the SDK does not type', async () => {
+      handler.registerHandler('delivery', mockHandler);
+
+      await handler.processWebhook({
+        ...sampleDeliveryPayload,
+        new_field: 'value',
+      });
+
+      expect(mockHandler).toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'delivery', new_field: 'value' })
+      );
+    });
+
+    it('should still default missing typed fields', async () => {
+      handler.registerHandler('delivery', mockHandler);
+
+      await handler.processWebhook({ event: 'delivery' });
+
+      expect(mockHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: '',
+          email: '',
+          tag: '',
+          metadata: {},
+          timestamp: 0,
+        })
+      );
+    });
+
     it('should copy the event id for every event type', async () => {
       handler.registerHandler('open', mockHandler);
 
