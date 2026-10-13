@@ -122,8 +122,10 @@ console.log(response.status, response.messageIds);
 ## Webhooks
 
 ```typescript
+import express from 'express';
 import { WebhookHandler, WebhookEventType } from 'laneful';
 
+const app = express();
 const webhookHandler = new WebhookHandler('your-webhook-secret');
 
 // Register event handlers
@@ -142,24 +144,34 @@ webhookHandler.on(WebhookEventType.OPEN)((event) => {
 });
 
 webhookHandler.on(WebhookEventType.CLICK)((event) => {
-    console.log(`Link clicked: ${event.url}`);
+    console.log(`Link clicked: ${event.message_id}`);
     // Access click-specific fields
     if (event.event === WebhookEventType.CLICK) {
+        console.log(`URL: ${event.url}`);
         console.log(`Referer: ${event.referer}`);
         console.log(`Client OS: ${event.client_os}`);
     }
 });
 
-// Verify and process webhooks (supports both single events and batch mode)
-app.post('/webhook', (req, res) => {
+// Verify and process webhooks (supports both single events and batch mode).
+// Verify the raw request body: re-serializing parsed JSON can change the bytes
+// and make the signature check fail.
+app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const signature = req.headers['x-webhook-signature'];
+    const payload = req.body.toString('utf8');
 
-    if (!webhookHandler.verifySignature(JSON.stringify(req.body), signature)) {
-        return res.status(401).send('Invalid signature');
+    if (typeof signature !== 'string' || !webhookHandler.verifySignature(payload, signature)) {
+        res.status(401).send('Invalid signature');
+        return;
     }
 
-    webhookHandler.processWebhook(req.body);
-    res.status(200).send('OK');
+    try {
+        await webhookHandler.processWebhook(payload);
+        res.status(200).send('OK');
+    } catch (error) {
+        console.error('Webhook processing failed:', error);
+        res.status(500).send('Error');
+    }
 });
 ```
 
@@ -275,8 +287,6 @@ const client = new LanefulClient(
   'your-auth-token'
 );
 ```
-
-Development uses `https://api.dev.laneful.net`.
 
 ### Unsubscribe groups
 
