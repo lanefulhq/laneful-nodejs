@@ -12,6 +12,9 @@ import { VERSION } from '../../version';
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 describe('LanefulClient', () => {
   const baseUrl = 'https://api.laneful.com';
   const authToken = 'test-token';
@@ -99,6 +102,9 @@ describe('LanefulClient', () => {
               subject: 'Test Subject',
             }),
           ],
+          mail_settings: {
+            idempotency_key: expect.stringMatching(UUID_PATTERN),
+          },
         },
       });
     });
@@ -122,6 +128,7 @@ describe('LanefulClient', () => {
         url: '/email/send',
         data: expect.objectContaining({
           mail_settings: {
+            idempotency_key: expect.stringMatching(UUID_PATTERN),
             sandbox_mode: true,
             return_message_ids: true,
           },
@@ -169,6 +176,70 @@ describe('LanefulClient', () => {
         LanefulAuthError
       );
     });
+
+    it('should send the given idempotency key', async () => {
+      mockedAxios.request.mockResolvedValue({
+        status: 200,
+        data: { status: 'accepted' },
+      });
+
+      await client.sendEmail(validEmail, { idempotencyKey: 'order-1234' });
+
+      expect(mockedAxios.request).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            mail_settings: { idempotency_key: 'order-1234' },
+          }),
+        })
+      );
+    });
+
+    it('should generate a new idempotency key for every call', async () => {
+      mockedAxios.request.mockResolvedValue({
+        status: 200,
+        data: { status: 'accepted' },
+      });
+
+      await client.sendEmail(validEmail);
+      await client.sendEmail(validEmail);
+
+      const [first, second] = mockedAxios.request.mock.calls.map(
+        ([config]) => (config.data as any).mail_settings.idempotency_key
+      );
+      expect(first).toMatch(UUID_PATTERN);
+      expect(second).toMatch(UUID_PATTERN);
+      expect(first).not.toEqual(second);
+    });
+
+    it('should reject an idempotency key outside 1 to 36 bytes', async () => {
+      for (const idempotencyKey of ['', 'k'.repeat(37), 'é'.repeat(19)]) {
+        await expect(
+          client.sendEmail(validEmail, { idempotencyKey })
+        ).rejects.toThrow(LanefulValidationError);
+      }
+      expect(mockedAxios.request).not.toHaveBeenCalled();
+    });
+
+    it('should reuse the idempotency key when retrying a send', async () => {
+      const retryingClient = new LanefulClient(baseUrl, authToken, {
+        retry: { baseDelay: 1, maxDelay: 1 },
+      });
+      mockedAxios.isAxiosError.mockReturnValue(true);
+      mockedAxios.request
+        .mockRejectedValueOnce({ code: 'ECONNABORTED' })
+        .mockResolvedValueOnce({ status: 200, data: { status: 'accepted' } });
+
+      const result = await retryingClient.sendEmail(validEmail);
+
+      expect(result).toEqual({ status: 'accepted' });
+      expect(mockedAxios.request).toHaveBeenCalledTimes(2);
+      const [first, second] = mockedAxios.request.mock.calls.map(
+        ([config]) => (config.data as any).mail_settings.idempotency_key
+      );
+      expect(first).toMatch(UUID_PATTERN);
+      expect(second).toEqual(first);
+      mockedAxios.isAxiosError.mockReset();
+    });
   });
 
   describe('sendEmails', () => {
@@ -211,6 +282,7 @@ describe('LanefulClient', () => {
         url: '/email/send',
         data: expect.objectContaining({
           mail_settings: {
+            idempotency_key: expect.stringMatching(UUID_PATTERN),
             sandbox_mode: true,
             return_message_ids: false,
           },

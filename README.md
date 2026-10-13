@@ -98,6 +98,7 @@ interface TrackingSettings {
 }
 
 interface MailSettings {
+  idempotencyKey?: string;     // Duplicate send protection, 1 to 36 bytes
   sandboxMode?: boolean;       // Do not persist or send
   returnMessageIds?: boolean;  // Include message_ids in the response
 }
@@ -118,6 +119,23 @@ const response = await client.sendEmail(email, {
 });
 console.log(response.status, response.messageIds);
 ```
+
+### Retries and duplicate send protection
+
+The client retries every request up to 3 more times by default: on timeouts (default 30 seconds), connection errors, 429 and 5xx responses other than 501, with exponential backoff starting at 1 second. Configure it with the `retry` option (`maxRetries`, `baseDelay`, `maxDelay`, `backoffMultiplier`, `jitter`).
+
+Every `sendEmail` and `sendEmails` call carries an idempotency key, and retries reuse it, so a send that timed out after Laneful accepted it is not delivered twice. The client generates a random key per call. Pass your own key to also protect against your application sending the same request again, for example after a restart:
+
+```typescript
+await client.sendEmail(email, { idempotencyKey: `order-${order.id}` });
+```
+
+How Laneful handles the key:
+
+- It must be 1 to 36 bytes; the client throws `LanefulValidationError` otherwise.
+- A key is remembered per organization for one hour. A repeated request with the same key gets status `accepted` with no message IDs, and nothing is sent, even if the emails differ, so use a new key for every distinct send.
+- If a request fails, the key is released and a retry with the same key is processed normally.
+- Sandbox mode requests are not deduplicated.
 
 ## Webhooks
 

@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import { randomUUID } from 'crypto';
 import {
   CreateDomainRequest,
   Domain,
@@ -212,10 +213,13 @@ export class LanefulClient {
   /**
    * Send multiple emails.
    *
+   * Every call is sent with an idempotency key (`settings.idempotencyKey`, or a random
+   * UUID when none is given), and retries reuse it, so a retried send is delivered once.
+   *
    * @param emails - Array of Email objects to send
    * @param settings - Optional mail settings for this request
    * @returns Promise resolving to {@link SendEmailResponse} with request status
-   * @throws {LanefulValidationError} If email list is empty
+   * @throws {LanefulValidationError} If email list is empty or the idempotency key is invalid
    * @throws {LanefulAuthError} If authentication fails
    * @throws {LanefulAPIError} If the API returns an error
    */
@@ -225,13 +229,14 @@ export class LanefulClient {
   ): Promise<SendEmailResponse> {
     this.validateEmailsList(emails);
 
+    const idempotencyKey = settings?.idempotencyKey ?? randomUUID();
+    this.validateIdempotencyKey(idempotencyKey);
+
+    // Built once, so every retry in makeRequest sends the same idempotency key.
     const requestData: Record<string, unknown> = {
       emails: emails.map((email) => emailToApiFormat(email)),
+      mail_settings: mailSettingsToApiFormat({ ...settings, idempotencyKey }),
     };
-
-    if (settings) {
-      requestData.mail_settings = mailSettingsToApiFormat(settings);
-    }
 
     const responseData = await this.makeRequest(
       'POST',
@@ -727,6 +732,21 @@ export class LanefulClient {
   private validateEmailsList(emails: Email[]): void {
     if (!Array.isArray(emails) || emails.length === 0) {
       throw new LanefulValidationError('Email list cannot be empty');
+    }
+  }
+
+  /**
+   * Validate an idempotency key against the API's 1 to 36 byte limit.
+   *
+   * @param key - Idempotency key to validate
+   * @throws {LanefulValidationError} If the key is empty or longer than 36 bytes
+   */
+  private validateIdempotencyKey(key: string): void {
+    const length = Buffer.byteLength(key, 'utf8');
+    if (length < 1 || length > 36) {
+      throw new LanefulValidationError(
+        'idempotencyKey must contain between 1 and 36 bytes'
+      );
     }
   }
 }
