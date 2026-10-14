@@ -122,7 +122,7 @@ console.log(response.status, response.messageIds);
 
 ### Retries and duplicate send protection
 
-The client retries every request up to 3 more times by default: on timeouts (default 30 seconds), connection errors, 429 and 5xx responses other than 501, with exponential backoff starting at 1 second. Configure it with the `retry` option (`maxRetries`, `baseDelay`, `maxDelay`, `backoffMultiplier`, `jitter`).
+The client retries every request up to 3 more times by default when it times out (default 30 seconds) or the connection fails (connection refused, DNS lookup failure), with exponential backoff starting at 1 second. HTTP error responses, including 429 and 5xx, are returned right away without a retry. Configure it with the `retry` option (`maxRetries`, `baseDelay`, `maxDelay`, `backoffMultiplier`, `jitter`).
 
 Every `sendEmail` and `sendEmails` call carries an idempotency key, and retries reuse it, so a send that timed out after Laneful accepted it is not delivered twice. The client generates a random key per call. Pass your own key to also protect against your application sending the same request again, for example after a restart:
 
