@@ -124,7 +124,7 @@ console.log(response.status, response.messageIds);
 
 The client retries every request up to 3 more times by default when it times out (default 30 seconds) or the connection fails (connection refused, DNS lookup failure), with exponential backoff starting at 1 second. HTTP error responses, including 429 and 5xx, are returned right away without a retry. Configure it with the `retry` option (`maxRetries`, `baseDelay`, `maxDelay`, `backoffMultiplier`, `jitter`).
 
-Every `sendEmail` and `sendEmails` call carries an idempotency key, and retries reuse it, so a send that timed out after Laneful accepted it is not delivered twice. The client generates a random key per call. Pass your own key to also protect against your application sending the same request again, for example after a restart:
+Every `sendEmail` and `sendEmails` call carries an idempotency key, and retries reuse it, so Laneful doesn't send a timed-out send again if it had already accepted it (detection is best effort). The client generates a random key per call. Pass your own key to also protect against your application sending the same request again, for example after a restart:
 
 ```typescript
 await client.sendEmail(email, { idempotencyKey: `order-${order.id}` });
@@ -134,7 +134,7 @@ How Laneful handles the key:
 
 - It must be 1 to 36 bytes; the client throws `LanefulValidationError` otherwise.
 - A key is remembered per organization for one hour. A repeated request with the same key gets status `accepted` with no message IDs, and nothing is sent, even if the emails differ, so use a new key for every distinct send.
-- If a request fails, the key is released and a retry with the same key is processed normally.
+- A request that fails with HTTP 500 doesn't keep its key, so a retry with it is processed as a new request. Before resending after a 500, check your webhook events (a `request` event means Laneful accepted the email).
 - Sandbox mode requests are not deduplicated.
 
 ## Webhooks
