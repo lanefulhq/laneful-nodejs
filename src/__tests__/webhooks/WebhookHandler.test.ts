@@ -123,13 +123,19 @@ describe('WebhookHandler', () => {
       expect(handler.verifySignature(payload, signature)).toBe(true);
     });
 
-    it('should skip verification when no secret is configured', () => {
+    it('should reject every signature when no secret is configured', () => {
       const handlerWithoutSecret = new WebhookHandler();
       const payload = JSON.stringify(sampleDeliveryPayload);
 
       expect(
         handlerWithoutSecret.verifySignature(payload, 'any-signature')
-      ).toBe(true);
+      ).toBe(false);
+    });
+
+    it('should reject an empty signature', () => {
+      const payload = JSON.stringify(sampleDeliveryPayload);
+
+      expect(handler.verifySignature(payload, '')).toBe(false);
     });
 
     it('should handle Buffer payload', () => {
