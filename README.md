@@ -98,6 +98,7 @@ interface TrackingSettings {
 }
 
 interface MailSettings {
+  idempotencyKey?: string;     // Duplicate send protection, 1 to 36 bytes
   sandboxMode?: boolean;       // Do not persist or send
   returnMessageIds?: boolean;  // Include message_ids in the response
 }
@@ -118,6 +119,23 @@ const response = await client.sendEmail(email, {
 });
 console.log(response.status, response.messageIds);
 ```
+
+### Retries and duplicate send protection
+
+The client retries every request up to 3 more times by default when it times out (default 30 seconds) or the connection fails (connection refused, DNS lookup failure), with exponential backoff starting at 1 second. HTTP error responses, including 429 and 5xx, are returned right away without a retry. Configure it with the `retry` option (`maxRetries`, `baseDelay`, `maxDelay`, `backoffMultiplier`, `jitter`).
+
+Every `sendEmail` and `sendEmails` call carries an idempotency key, and retries reuse it, so Laneful doesn't send a timed-out send again if it had already accepted it (detection is best effort). The client generates a random key per call. Pass your own key to also protect against your application sending the same request again, for example after a restart:
+
+```typescript
+await client.sendEmail(email, { idempotencyKey: `order-${order.id}` });
+```
+
+How Laneful handles the key:
+
+- It must be 1 to 36 bytes; the client throws `LanefulValidationError` otherwise.
+- A key is remembered per organization for one hour. A repeated request with the same key gets status `accepted` with no message IDs, and nothing is sent, even if the emails differ, so use a new key for every distinct send.
+- A request that fails with HTTP 500 doesn't keep its key, so a retry with it is processed as a new request. Before resending after a 500, check your webhook events (a `request` event means Laneful accepted the email).
+- Sandbox mode requests are not deduplicated.
 
 ## Webhooks
 
@@ -179,9 +197,15 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
 **Available Events:** `request`, `delivery`, `open`, `click`, `drop`, `spam_complaint`, `unsubscribe`, `bounce`
 
+Temporary delivery failures (deferrals) are sent as `bounce` events with `is_hard: false` while Laneful keeps retrying for up to 72 hours. A permanent failure is a `bounce` with `is_hard: true`, and when retries run out after 72 hours the final event is a `bounce` with `is_hard: true` (a `drop` on relay lanes).
+
+### Event Fields
+
+Every event has `id`, `event`, `email`, `message_id`, `lane_id`, `tag`, `timestamp` and `metadata` (the `webhookData` sent with the email). `id` is unique per event and stays the same when Laneful delivers the event again on retry or in a batch, so use it to skip events you have already processed.
+
 ### Event-Specific Fields
 
-- **request**: `id`, `mx_host`
+- **request**: `mx_host`
 - **delivery**: Basic event fields only
 - **open**: `referer`, `client_name`, `client_os`, `client_ip`, `client_device`  
 - **click**: `url`, `referer`, `client_name`, `client_os`, `client_ip`, `client_device`
