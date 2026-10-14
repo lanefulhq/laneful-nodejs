@@ -38,14 +38,14 @@ import {
   sendEmailResponseFromApi,
   successResponseFromApi,
   updateDomainRequestToApi,
-} from '../models';
+} from '../models/index.js';
 import {
   LanefulError,
   LanefulAPIError,
   LanefulAuthError,
   LanefulValidationError,
-} from '../exceptions';
-import { VERSION } from '../version';
+} from '../exceptions/index.js';
+import { VERSION } from '../version.js';
 
 const DEFAULT_USER_AGENT = `laneful-nodejs/${VERSION}`;
 

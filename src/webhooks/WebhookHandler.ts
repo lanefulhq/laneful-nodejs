@@ -3,7 +3,7 @@ import {
   WebhookEvent,
   WebhookEventHandler,
   createWebhookEvent,
-} from './WebhookTypes';
+} from './WebhookTypes.js';
 
 /**
  * Handler for processing Laneful webhook events.

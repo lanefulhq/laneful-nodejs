@@ -23,7 +23,7 @@
     "prebuild": "node -p \"'export const VERSION = ' + JSON.stringify(require('./package.json').version) + ';'\" > src/version.ts",
     "build": "npm run clean && npm run build:cjs && npm run build:esm && npm run build:types",
     "build:cjs": "tsc -p tsconfig.cjs.json",
-    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:esm": "tsc -p tsconfig.esm.json && node -e \"require('fs').writeFileSync('dist/esm/package.json', '{\\\"type\\\": \\\"module\\\"}\\n')\"",
     "build:types": "tsc -p tsconfig.types.json",
     "build:watch": "tsc --watch",
     "tc": "tsc --noEmit -p tsconfig.json",

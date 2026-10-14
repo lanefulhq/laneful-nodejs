@@ -1,2 +1,2 @@
-export * from './WebhookTypes';
-export * from './WebhookHandler';
+export * from './WebhookTypes.js';
+export * from './WebhookHandler.js';
