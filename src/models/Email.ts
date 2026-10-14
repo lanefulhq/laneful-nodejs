@@ -1,10 +1,10 @@
-import { LanefulValidationError } from '../exceptions';
-import { Address, addressToApiFormat } from './Address';
-import { Attachment, attachmentToApiFormat } from './Attachment';
+import { LanefulValidationError } from '../exceptions/index.js';
+import { Address, addressToApiFormat } from './Address.js';
+import { Attachment, attachmentToApiFormat } from './Attachment.js';
 import {
   TrackingSettings,
   trackingSettingsToApiFormat,
-} from './TrackingSettings';
+} from './TrackingSettings.js';
 
 /**
  * Email message data.

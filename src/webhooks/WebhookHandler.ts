@@ -3,7 +3,7 @@ import {
   WebhookEvent,
   WebhookEventHandler,
   createWebhookEvent,
-} from './WebhookTypes';
+} from './WebhookTypes.js';
 
 /**
  * Handler for processing Laneful webhook events.
@@ -40,11 +40,12 @@ export class WebhookHandler {
    *
    * @param payload - The raw webhook payload
    * @param signature - The signature header from the webhook request
-   * @returns True if signature is valid, false otherwise
+   * @returns True if signature is valid, false otherwise (always false when
+   * the handler was created without a secret)
    */
   verifySignature(payload: string | Buffer, signature: string): boolean {
-    if (!this.webhookSecret) {
-      return true; // Skip verification if no secret is configured
+    if (!this.webhookSecret || !signature) {
+      return false;
     }
 
     const payloadBuffer = Buffer.isBuffer(payload)

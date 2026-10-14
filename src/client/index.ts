@@ -1,1 +1,1 @@
-export * from './LanefulClient';
+export * from './LanefulClient.js';

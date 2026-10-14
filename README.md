@@ -206,13 +206,15 @@ Every event has `id`, `event`, `email`, `message_id`, `lane_id`, `tag`, `timesta
 ### Event-Specific Fields
 
 - **request**: `mx_host`
-- **delivery**: Basic event fields only
-- **open**: `referer`, `client_name`, `client_os`, `client_ip`, `client_device`  
-- **click**: `url`, `referer`, `client_name`, `client_os`, `client_ip`, `client_device`
-- **drop**: `reason`
-- **spam_complaint**: `feedback_type`, `feedback_type_text`, `received_unix_timestamp`
-- **unsubscribe**: `unsubscribe_group_id` (number)
-- **bounce**: `code`, `extended_code`, `text`, `is_hard`, `deliverability_issue`
+- **delivery**: `mx_host`, `relay` (true when delivered through a relay lane)
+- **open**: `referer`, `client_name`, `client_os`, `client_ip`, `client_device`, `is_machine`
+- **click**: `url`, `referer`, `client_name`, `client_os`, `client_ip`, `client_device`, `is_machine`
+- **drop**: `reason`, `mx_host`
+- **spam_complaint**: `feedback_type`, `feedback_type_text`, `received_unix_timestamp`, `mx_host`
+- **unsubscribe**: `unsubscribe_group_id` (number), `mx_host` (mailto unsubscribes)
+- **bounce**: `code`, `extended_code`, `text`, `is_hard`, `deliverability_issue`, `classification`, `mx_host`
+
+`is_machine` marks opens and clicks that look automated, such as security scanners. Events also keep any field this SDK doesn't type yet, so new fields Laneful adds reach your handlers without an SDK update.
 
 ### Batch Mode Support
 

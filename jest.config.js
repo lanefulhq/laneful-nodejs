@@ -13,5 +13,9 @@ module.exports = {
     '^.+\\.ts$': 'ts-jest',
   },
   moduleFileExtensions: ['ts', 'js', 'json'],
+  // Source imports use .js extensions for Node ESM; map them back to the .ts files.
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
   roots: ['<rootDir>/src'],
 };

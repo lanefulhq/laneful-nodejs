@@ -25,6 +25,8 @@ export interface BaseWebhookEvent {
   metadata: Record<string, unknown>;
   tag: string;
   timestamp: number;
+  /** MX host of the recipient's domain, on events from the delivery pipeline. */
+  mx_host?: string;
 }
 
 /**
@@ -40,6 +42,8 @@ export interface RequestEvent extends BaseWebhookEvent {
  */
 export interface DeliveryEvent extends BaseWebhookEvent {
   event: WebhookEventType.DELIVERY;
+  /** True when the email was delivered through a relay lane. */
+  relay?: boolean;
 }
 
 /**
@@ -52,6 +56,8 @@ export interface OpenEvent extends BaseWebhookEvent {
   client_os?: string;
   client_ip?: string;
   client_device?: string;
+  /** True when the open looks automated (e.g. a security scanner or image proxy). */
+  is_machine?: boolean;
 }
 
 /**
@@ -65,6 +71,8 @@ export interface ClickEvent extends BaseWebhookEvent {
   client_os?: string;
   client_ip?: string;
   client_device?: string;
+  /** True when the click looks automated (e.g. a link scanner). */
+  is_machine?: boolean;
 }
 
 /**
@@ -103,6 +111,8 @@ export interface BounceEvent extends BaseWebhookEvent {
   text: string;
   is_hard: boolean;
   deliverability_issue?: string;
+  /** Bounce category, e.g. "Mailbox Unavailable". */
+  classification?: string;
 }
 
 /**
@@ -125,11 +135,15 @@ export type WebhookPayload = WebhookEvent | WebhookEvent[];
 
 /**
  * Creates a WebhookEvent from webhook payload data.
+ *
+ * Every field in the payload is kept, including fields this SDK doesn't type yet, so new
+ * fields Laneful sends reach handlers without an SDK update.
  */
 export function createWebhookEvent(
   data: Record<string, unknown>
 ): WebhookEvent {
   const baseEvent: BaseWebhookEvent = {
+    ...data,
     id: (data.id as string) ?? '',
     email: (data.email as string) ?? '',
     event: (data.event as WebhookEventType) ?? ('' as WebhookEventType),
