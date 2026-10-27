@@ -84,6 +84,8 @@ export function emailToApiFormat(email: Email): Record<string, unknown> {
   return result;
 }
 
+// The send API limits keys to 50 bytes and values to 100 bytes in UTF-8, so
+// "é" counts as 2 and most emoji as 4.
 function validateWebhookData(data?: Record<string, string>): void {
   if (!data) {
     return;
@@ -97,14 +99,14 @@ function validateWebhookData(data?: Record<string, string>): void {
   }
 
   for (const [key, value] of Object.entries(data)) {
-    if (key.length > 50) {
+    if (Buffer.byteLength(key, 'utf8') > 50) {
       throw new LanefulValidationError(
-        'Webhook data keys cannot exceed 50 characters'
+        'Webhook data keys cannot exceed 50 bytes (UTF-8)'
       );
     }
-    if (String(value).length > 100) {
+    if (Buffer.byteLength(String(value), 'utf8') > 100) {
       throw new LanefulValidationError(
-        'Webhook data values cannot exceed 100 characters'
+        'Webhook data values cannot exceed 100 bytes (UTF-8)'
       );
     }
   }

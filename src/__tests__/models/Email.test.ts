@@ -96,7 +96,7 @@ describe('Email', () => {
       ).toThrow(LanefulValidationError);
     });
 
-    it('should reject webhook data keys longer than 50 characters', () => {
+    it('should reject webhook data keys longer than 50 bytes', () => {
       expect(() =>
         emailToApiFormat({
           from: validFromAddress,
@@ -105,10 +105,10 @@ describe('Email', () => {
           textContent: 'Test content',
           webhookData: { ['k'.repeat(51)]: 'value' },
         })
-      ).toThrow(/50 characters/);
+      ).toThrow(/50 bytes/);
     });
 
-    it('should reject webhook data values longer than 100 characters', () => {
+    it('should reject webhook data values longer than 100 bytes', () => {
       expect(() =>
         emailToApiFormat({
           from: validFromAddress,
@@ -117,7 +117,23 @@ describe('Email', () => {
           textContent: 'Test content',
           webhookData: { key: 'v'.repeat(101) },
         })
-      ).toThrow(/100 characters/);
+      ).toThrow(/100 bytes/);
+    });
+
+    // "é" is 2 bytes in UTF-8: 25 fill a 50-byte key and 50 fill a 100-byte value.
+    it('should count webhook data lengths in UTF-8 bytes', () => {
+      const send = (webhookData: Record<string, string>) => () =>
+        emailToApiFormat({
+          from: validFromAddress,
+          to: [validToAddress],
+          subject: 'Test Subject',
+          textContent: 'Test content',
+          webhookData,
+        });
+
+      expect(send({ ['é'.repeat(25)]: 'é'.repeat(50) })).not.toThrow();
+      expect(send({ ['é'.repeat(26)]: 'value' })).toThrow(/50 bytes/);
+      expect(send({ key: 'é'.repeat(51) })).toThrow(/100 bytes/);
     });
   });
 });
